@@ -1,0 +1,74 @@
+# kubectl create secret generic my-secret --from-literal=key1=supersecret --from-literal=key2=topsecret -o yaml --dry-run=true | kubectl apply -f -
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: kuard
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app: kuard
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kuard-deployment
+spec:
+  selector:
+    matchLabels:
+      app: kuard
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: kuard
+    spec:
+      containers:
+        - image: gcr.io/kuar-demo/kuard-amd64:1
+          env:
+          - name: DEMO_GREETING
+            value: "Hello from the environment"
+          - name: DEMO_FAREWELL
+            value: "Such a sweet sorrow"
+          - name: key1
+            valueFrom:
+              secretKeyRef:
+                name: my-secret
+                key: key1
+          - name: password
+            valueFrom:
+              secretKeyRef:
+                name: my-secret
+                key: key2
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: 0.25
+            limits:
+              memory: "256Mi"
+              cpu: 0.5
+          name: kuard
+          ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthy
+              port: 8080
+            initialDelaySeconds: 60
+            timeoutSeconds: 1
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+            periodSeconds: 10
+            failureThreshold: 3
