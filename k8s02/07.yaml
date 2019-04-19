@@ -39,6 +39,9 @@ spec:
             value: "Hello from the environment"
           - name: DEMO_FAREWELL
             value: "Such a sweet sorrow"
+          # Sztuczna zmienna, którą można zmieniać przy każdym wdrożeniu aby przeładować wartości z configmap/secret jeśli aplikacja jest nie zmienina
+          - name: RelaseDate
+            value: Nazwa_Relase1
           - name: key1-configmap
             valueFrom:
               configMapKeyRef:
@@ -101,7 +104,7 @@ metadata:
   name: my-config
 data:
   key1: config1
-  key2: config2
+  key2: config2blablablablablabla
 ---
 apiVersion: v1
 kind: ConfigMap
