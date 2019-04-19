@@ -1,5 +1,8 @@
 # kubectl create configmap my-config-file --from-file=demo.conf -o yaml --dry-run=true
 # kubectl create configmap my-config --from-literal=key1=config1 --from-literal=key2=config2 -o yaml --dry-run=true
+# https://docs.microsoft.com/en-us/azure/aks/azure-files-dynamic-pv
+# https://docs.microsoft.com/en-us/azure/aks/azure-files-volume
+
 apiVersion: v1
 kind: Service
 metadata:
@@ -34,6 +37,8 @@ spec:
             mountPath: "/etc/foo"
           - name: my-config-file
             mountPath: "/configmap"
+          - name: volume
+            mountPath: "/sharezazure"
           env:
           - name: DEMO_GREETING
             value: "Hello from the environment"
@@ -97,6 +102,9 @@ spec:
       - name: my-config-file
         configMap:
           name: my-config-file
+      - name: volume
+        persistentVolumeClaim:
+          claimName: my-share
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -119,8 +127,20 @@ data:
     i co jeszcze
 
     blblbllblblba,lqslm
-  demo.conf: |-
+  demo123.conf: |-
     Kolejny plik konfigurayjny
     Demo
 
     Lalalal
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-share
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: azurefile
+  resources:
+    requests:
+      storage: 5Gi
