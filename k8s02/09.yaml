@@ -1,0 +1,151 @@
+# kubectl create configmap my-config-file --from-file=demo.conf -o yaml --dry-run=true
+# kubectl create configmap my-config --from-literal=key1=config1 --from-literal=key2=config2 -o yaml --dry-run=true
+# https://docs.microsoft.com/en-us/azure/aks/azure-files-dynamic-pv
+# https://docs.microsoft.com/en-us/azure/aks/azure-files-volume
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: kuard
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app: kuard
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kuard-deployment
+spec:
+  selector:
+    matchLabels:
+      app: kuard
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 3
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: kuard
+    spec:
+      containers:
+        - image: gcr.io/kuar-demo/kuard-amd64:1
+          volumeMounts:
+          - name: my-secret-file
+            mountPath: "/etc/foo"
+          - name: my-config-file
+            mountPath: "/configmap"
+          - name: volume
+            mountPath: "/sharezazure"
+          env:
+          - name: DEMO_GREETING
+            value: "Hello from the environment"
+          - name: DEMO_FAREWELL
+            value: "Such a sweet sorrow"
+          # Sztuczna zmienna, którą można zmieniać przy każdym wdrożeniu aby przeładować wartości z configmap/secret jeśli aplikacja jest nie zmienina
+          - name: RelaseDate
+            value: Nazwa_Relase6
+          - name: key1-configmap
+            valueFrom:
+              configMapKeyRef:
+                name: my-config
+                key: key1
+          - name: cokolwiek
+            valueFrom:
+              configMapKeyRef:
+                name: my-config
+                key: key2
+          - name: key1
+            valueFrom:
+              secretKeyRef:
+                name: my-secret
+                key: key1
+          - name: password
+            valueFrom:
+              secretKeyRef:
+                name: my-secret
+                key: key2
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: 0.25
+            limits:
+              memory: "256Mi"
+              cpu: 0.5
+          name: kuard
+          ports:
+          - containerPort: 8080
+            name: http
+            protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthy
+              port: 8080
+            initialDelaySeconds: 20
+            timeoutSeconds: 1
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 20
+            timeoutSeconds: 1
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+      - name: my-secret-file
+        secret:
+          secretName: my-secret-file
+      - name: my-config-file
+        configMap:
+          name: my-config-file
+      - name: volume
+        persistentVolumeClaim:
+          claimName: my-share
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-config
+data:
+  key1: config1
+  key2: config2blablablablablabla
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-config-file
+data:
+  demo.conf: |-
+    Tu jest plik konfiguracyjny
+
+    Tu kolejna lnia
+
+    i co jeszcze
+
+    blblbllblblba,lqslm
+  demo123.conf: |-
+    Kolejny plik konfigurayjny
+    Demo
+
+    Lalalal
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-share
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: azurefile
+  resources:
+    requests:
+      storage: 5Gi
